@@ -1,5 +1,6 @@
-# use 24th data as eval, day 2 was the best
-# for now use same red team labels as nethawk
+import sys
+sys.path.append('../')
+
 import os
 import networkx as nx
 #import gzip
@@ -44,7 +45,7 @@ def parse_event(event: dict) -> dict:
 
 
 trace_red_labels = []
-with open('./groundtruth_threaTrace/trace.txt', 'r') as f:
+with open('../groundtruth_threaTrace/trace.txt', 'r') as f:
     trace_red_labels = f.read().splitlines()
 
 # Figure out the days of the labels for the trace data
@@ -55,6 +56,7 @@ for f in all_trace_files:
     with open(f, 'r') as f:
         for line in f:
             line = json.loads(line)
+            print(line)
             uuid = ''
             ts = 0
             if 'com.bbn.tc.schema.avro.cdm18.Event' in line['datum']:
