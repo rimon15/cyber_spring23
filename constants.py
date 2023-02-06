@@ -1,2 +1,33 @@
+from enum import Enum
 
-TRACE_DATA_DIR = '/mnt/raid0_ssd_8tb/rimon/gemini1_datasets/trace/'
+class EdgeTypes(Enum):
+    EVENT_UNIT = 0
+    EVENT_LINK = 1
+    EVENT_MMAP = 2
+    EVENT_WRITE = 3
+    EVENT_CLOSE = 4
+    EVENT_OPEN = 5
+    EVENT_EXIT = 6
+    EVENT_READ = 7
+    EVENT_ACCEPT = 8
+    EVENT_SENDMSG = 9
+    EVENT_FORK = 10
+    EVENT_UNLINK = 11
+    EVENT_EXECUTE = 12
+    EVENT_RECVMSG = 13
+    EVENT_MODIFY_FILE = 14
+    EVENT_CREATE_OBJECT = 16
+    EVENT_RENAME = 17
+    EVENT_CONNECT = 18
+    EVENT_LOADLIBRARY = 19
+    EVENT_TRUNCATE = 20
+    EVENT_CLONE = 21
+    EVENT_MPROTECT = 22
+    EVENT_OTHER = 23
+    EVENT_CHANGE_PRINCIPAL = 24
+    EVENT_UPDATE = 25
+
+class NodeTypes(Enum):
+    PROCESS = 0
+    FILE = 1
+    SOCKET = 2
