@@ -1,0 +1,13 @@
+{
+  "remote_ips": [
+    "162.66.239.75",
+    "103.12.253.24"
+  ],
+  "files": [
+    "tcexec",
+    "tcexfil"
+  ],
+  "processes": [
+    "tcexec"
+  ]
+}

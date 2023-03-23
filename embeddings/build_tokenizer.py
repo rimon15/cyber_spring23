@@ -1,6 +1,8 @@
 from tokenizers import decoders, models, normalizers, pre_tokenizers, processors, trainers, Tokenizer, BertWordPieceTokenizer
 from datasets import load_dataset
 from transformers import AutoTokenizer, BertTokenizerFast
+from argparse import ArgumentParser
+import os
 
 '''
 Load/Test tokenizer
@@ -13,16 +15,21 @@ Load/Test tokenizer
 '''
 Train BERT-like tokeinzer for TC dataset
 '''
+parser = ArgumentParser()
+parser.add_argument("--root_dir", type=str, help='Path to cyber_spring23/ dir', required=True)
+args = parser.parse_args()
+
 batch_size = 1000
 
-data_path = "/home/ykim/workspace/cyber_spring23/preprocess/raw_text/"
+data_path = os.path.join(args.root_dir, 'preprocess/raw_text/')#"/home/ykim/workspace/cyber_spring23/preprocess/raw_text/"
+# right now it is using the local address? We can try to use remote and see what to do...
 dataset = load_dataset('text', data_files={'text': [data_path + "new_process_raw.txt", data_path + "new_file_raw.txt", data_path + "new_socket_raw.txt"]})
 
 def batch_iterator():
     for i in range(0, len(dataset), batch_size):
         yield dataset['text'][i : i + batch_size]["text"]
 
-tokenizer = Tokenizer(models.WordPiece(unl_token="[UNK]"))
+tokenizer = Tokenizer(models.WordPiece(unk_token="[UNK]")) # typo unl_token -> unk_token?
 tokenizer.normalizer = normalizers.BertNormalizer(lowercase=True)
 
 tokenizer.pre_tokenizer = pre_tokenizers.BertPreTokenizer()
@@ -45,7 +52,7 @@ tokenizer.decoder = decoders.WordPiece(prefix="##")
 Save tokenizer
 '''
 new_tokenizer = BertTokenizerFast(tokenizer_object=tokenizer)
-new_tokenizer.save_pretrained("/home/ykim/workspace/cyber_spring23/embeddings/tokenizer/")
+new_tokenizer.save_pretrained(os.path.join(args.root_dir, 'embeddings/tokenizer'))#"/home/ykim/workspace/cyber_spring23/embeddings/tokenizer/")
 
 
 '''
@@ -53,13 +60,13 @@ OOV check
 '''
 cnt = 0
 for i in range(0, len(dataset['text'])):
-    encoding = tokenizer.tokenize(dataset['text'][i]["text"])
-    if '[UNK]' in encoding.tokens:
-        print(encoding.tokens)
-        print(len(encoding.tokens))
+    encoding = new_tokenizer.tokenize(dataset['text'][i]["text"])
+    if '[UNK]' in encoding:
+        # print(encoding)
+        # print(len(encoding))
         cnt += 1
-    print(encoding.tokens)
-    print(len(encoding.tokens))
+    # print(encoding)
+    # print(len(encoding))
 print(cnt)
 
 

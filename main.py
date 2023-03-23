@@ -9,7 +9,7 @@ MODEL_PARAMS = defaultdict(
   gpu_ids=[0],  # [0,1,2,3]
 
   train_batch_size=16,  # 32
-  vocab_size = 5208,
+  vocab_size = 5208,#5208,
   learning_rate=3e-05,  # 2e-05
 
   dropout_keep_prob=0.8,
