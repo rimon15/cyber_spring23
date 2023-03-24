@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from transformers import BertConfig, BertForMaskedLM
 
+
 class KBERT(nn.Module):
   def __init__(self, hparams):
     super(KBERT, self).__init__()
@@ -21,7 +22,7 @@ class KBERT(nn.Module):
         nn.Linear(self.hparams.bert_hidden_dim,
                   self.hparams.num_categories)
     )
-    
+
     self.loss_fct = nn.CrossEntropyLoss()
 
   def forward(self, batch):
@@ -32,10 +33,10 @@ class KBERT(nn.Module):
     )
     mlm_loss = self.loss_fct(outputs.logits.view(-1, self.hparams.vocab_size), batch["labels"].view(-1))
     bert_outputs = outputs.hidden_states[-1]
-    
+
     cls_losses = []
     for idx, sep_pos in enumerate(batch["sep_pos"]):
-  
+
       sep_pos_nonzero = sep_pos.nonzero().view(-1)
 
       sep_out = bert_outputs[idx, sep_pos_nonzero, :]

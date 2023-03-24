@@ -10,8 +10,8 @@ import json
 import tqdm
 import glob
 import networkx as nx
-import walker  # pip install graph-walker: https://github.com/kerighan/graph-walker
 import os
+import random
 
 VALID_EVENTS = {
     'event_execute': 0,
@@ -212,9 +212,8 @@ def parse_trace_entities(fpath: str, all_entities: dict, red_labels: dict) -> No
       if 'com.bbn.tc.schema.avro.cdm18.Subject' in line['datum']:
         res, uuid = parse_process(line['datum']['com.bbn.tc.schema.avro.cdm18.Subject'])
         if res:
-          if benign_file:
-            res['label'] = 0
-          else:
+          res['label'] = 0
+          if not benign_file:
             for p in red_labels['processes']:
               if p in res['cmdLine']:
                 res['label'] = 1
@@ -224,9 +223,8 @@ def parse_trace_entities(fpath: str, all_entities: dict, red_labels: dict) -> No
       elif 'com.bbn.tc.schema.avro.cdm18.FileObject' in line['datum']:
         res, uuid = parse_file(line['datum']['com.bbn.tc.schema.avro.cdm18.FileObject'])
         if res:
-          if benign_file:
-            res['label'] = 0
-          else:
+          res['label'] = 0
+          if not benign_file:
             for f in red_labels['files']:
               if f in res['path']:
                 res['label'] = 1
@@ -236,9 +234,8 @@ def parse_trace_entities(fpath: str, all_entities: dict, red_labels: dict) -> No
       elif 'com.bbn.tc.schema.avro.cdm18.NetFlowObject' in line['datum']:
         res, uuid = parse_socket(line['datum']['com.bbn.tc.schema.avro.cdm18.NetFlowObject'])
         if res:
-          if benign_file:
-            res['label'] = 0
-          else:
+          res['label'] = 0
+          if not benign_file:
             for s in red_labels['remote_ips']:
               if s in res['remoteAddress']:
                 res['label'] = 1
@@ -309,19 +306,82 @@ def reduce_noise_cpr(entities: dict, edges: dict) -> None:
   pass
 
 
-def gen_nx_graph(edges: dict) -> nx.DiGraph:
+def gen_nx_graph(edges: dict, entity2id: dict) -> nx.DiGraph:
   g = nx.DiGraph()
   for e in edges:
-    g.add_edge(edges[e]['subject'], edges[e]['object'], type=edges[e]['type'], sequence=edges[e]['sequence'])
+    src_node = entity2id[edges[e]['subject']]
+    dest_node = entity2id[edges[e]['object']]
+    g.add_edge(src_node, dest_node, type=edges[e]['type'], sequence=edges[e]['sequence'])
   return g
 
 
-def gen_dfs_walks(entities: dict, edges: dict) -> list[list[str]]:
-  pass
+# def gen_random_walks(G: nx.DiGraph, id2entity: dict, walk_len: int) -> list[list[str]]:
+#   walks = {}
+#   for node in G.nodes():
+#     walks[node] = []
+#     for _ in range(1):  # generate this many walks for each node...
+#       walk = [(id2entity[node], 0)]  # holds the walk and the sequence number for each edge
+#       for _ in range(walk_len):
+#         neighbors = list(G.neighbors(node))
+#         neighbors = list(filter(lambda n: G.get_edge_data(node, n)['sequence'] > walk[-1][1] and
+#                                 n not in walk[:][0], neighbors))
+#         next_node = random.choice(neighbors)
+#         data = G.get_edge_data(node, next_node)
+#         # make an edges list and append and ensure that the next randomly picked node has higher sequence
+#         walk.append((id2entity[node], data['sequence']))
+#       walks[node].append(walk)
+#   return walks
+
+def find_all_paths(G: nx.DiGraph, u: str, n: int, exclude: set = None) -> list:
+  if exclude == None:
+    exclude = set([u])
+  else:
+    exclude.add(u)
+  if n == 0:
+    return [[u]]
+  paths = [[u]+path for neighbor in G.neighbors(u)
+           if neighbor not in exclude for path in find_all_paths(G, neighbor, n - 1, exclude)]
+  exclude.remove(u)
+  return paths
 
 
-def gen_random_walks(entities: dict, edges: dict) -> list[list[str]]:
-  pass
+def gen_all_valid_entity_seqs(G: nx.DiGraph, id2entity: dict, walk_len: int) -> dict[list[str]]:
+  seqs = {}
+  for node in tqdm.tqdm(G.nodes(), total=G.number_of_nodes()):
+    seqs[node] = []
+    all_cur_seqs = find_all_paths(G, node, walk_len)
+    for seq in all_cur_seqs:
+      cur_seq_num = 0
+      for i in range(1, len(seq)):
+        if G.get_edge_data(seq[i-1], seq[i])['sequence'] < cur_seq_num:
+          cur_seq_num = -1
+          break
+        cur_seq_num = G.get_edge_data(seq[i - 1], seq[i])['sequence']
+      if cur_seq_num != -1:
+        seqs[node].append(seq)
+  for k in list(seqs.keys()):
+    if len(seqs[k]) == 0:
+      del seqs[k]
+  return seqs
+
+
+def write_walks(G: nx.DiGraph, id2entity: dict, walks: dict[list[str]], fname: str, all_entities: dict) -> None:
+  with open(fname, 'w') as f:
+    for node in walks:
+      for walk in walks[node]:
+        is_red = False
+        for i in range(1, len(walk)):
+          prev_node = id2entity[walk[i-1]]
+          cur_node = id2entity[walk[i]]
+          if all_entities[prev_node]['label'] == 1 or all_entities[cur_node]['label'] == 1:
+            is_red = True
+          f.write(
+              f'{id2entity[walk[i-1]]}\t{G.get_edge_data(walk[i-1], walk[i])["type"]}\t{id2entity[walk[i]]}')
+        if is_red:
+          f.write('\t1')
+        else:
+          f.write('\t0')
+        f.write('\n')
 
 
 if __name__ == "__main__":
@@ -331,57 +391,94 @@ if __name__ == "__main__":
   parser.add_argument('--labels_file', type=str, help='The JSON file with the red labels for the scenario')
   parser.add_argument('--reduce_noise', type=str, help='noise reduction applied to graphs (NONE, TEMP_FILES, \
                       CPR, ALL)')
+  parser.add_argument('--walk_len', type=int, default=4, help='The length of the walk')
+  parser.add_argument('--load', action='store_true',
+                      help='Load the existing graphs and walks from output_dir')
   args = parser.parse_args()
 
-  # The labeling strategy is to get the red labels for the entities, then for each sequence, we can call
-  # the sequence malicious if it contains an entity that is labeled as malicious
-  red_labels = {}
-  with open(args.labels_file, 'r') as f:
-    red_labels = json.load(f)
-
-  # First, load all entities from the files
   all_entities = {}
-  files = glob.glob(args.trace_dir + '/*')
-  for f in tqdm.tqdm(files, total=len(files)):
-    parse_trace_entities(f, all_entities, red_labels)
-
-  # Next, collect the edges from the graphs and generate the graphs
   all_benign_edges = {}
   all_eval_edges = {}
-  for f in tqdm.tqdm(files, total=len(files)):
-    if 'EVAL' in f:
-      parse_trace_edges(f, all_entities, all_eval_edges)
-    else:
-      parse_trace_edges(f, all_entities, all_benign_edges)
+  entity2id = {}
+  if not args.load:
+    # The labeling strategy is to get the red labels for the entities, then for each sequence, we can call
+    # the sequence malicious if it contains an entity that is labeled as malicious
+    red_labels = {}
+    with open(args.labels_file, 'r') as f:
+      red_labels = json.load(f)
 
-  print("Total number of entities: ", len(all_entities))
-  print("Total number of benign unreduced edges: ", len(all_benign_edges))
-  print("Total number of eval unreduced edges: ", len(all_eval_edges))
+    # First, load all entities from the files
+    all_entities = {}
+    files = glob.glob(args.trace_dir + '/*')
+    for f in tqdm.tqdm(files, total=len(files)):
+      parse_trace_entities(f, all_entities, red_labels)
 
-  # Perform noise reduction on the graphs if specified
-  if args.reduce_noise == 'ALL':
-    reduce_noise_temp_files(all_entities, all_benign_edges)
-    reduce_noise_temp_files(all_entities, all_eval_edges)
-    reduce_noise_cpr(all_entities, all_benign_edges)
-    reduce_noise_cpr(all_entities, all_eval_edges)
-  elif args.reduce_noise == 'TEMP_FILES':
-    reduce_noise_temp_files(all_entities, all_benign_edges)
-    reduce_noise_temp_files(all_entities, all_eval_edges)
-  elif args.reduce_noise == 'CPR':
-    reduce_noise_cpr(all_entities, all_benign_edges)
-    reduce_noise_cpr(all_entities, all_eval_edges)
+    # Next, collect the edges from the graphs and generate the graphs
+    all_benign_edges = {}
+    all_eval_edges = {}
+    for f in tqdm.tqdm(files, total=len(files)):
+      if 'EVAL' in f:
+        parse_trace_edges(f, all_entities, all_eval_edges)
+      else:
+        parse_trace_edges(f, all_entities, all_benign_edges)
 
-  # Save the graphs
-  print("Saving entities & graphs...")
-  with open(os.path.join(args.output_dir, 'entities.pkl'), 'wb') as f:
-    pickle.dump(all_entities, f)
-  with open(os.path.join(args.output_dir, 'benign_graph.pkl'), 'wb') as f:
-    pickle.dump(all_benign_edges, f)
-  with open(os.path.join(args.output_dir, 'eval_graph.pkl'), 'wb') as f:
-    pickle.dump(all_eval_edges, f)
+    print("Total number of entities: ", len(all_entities))
+    print("Total number of benign unreduced edges: ", len(all_benign_edges))
+    print("Total number of eval unreduced edges: ", len(all_eval_edges))
 
+    # Perform noise reduction on the graphs if specified
+    if args.reduce_noise == 'ALL':
+      reduce_noise_temp_files(all_entities, all_benign_edges)
+      reduce_noise_temp_files(all_entities, all_eval_edges)
+      reduce_noise_cpr(all_entities, all_benign_edges)
+      reduce_noise_cpr(all_entities, all_eval_edges)
+    elif args.reduce_noise == 'TEMP_FILES':
+      reduce_noise_temp_files(all_entities, all_benign_edges)
+      reduce_noise_temp_files(all_entities, all_eval_edges)
+    elif args.reduce_noise == 'CPR':
+      reduce_noise_cpr(all_entities, all_benign_edges)
+      reduce_noise_cpr(all_entities, all_eval_edges)
+
+    # Save the graphs
+    print("Saving entities & graphs...")
+    with open(os.path.join(args.output_dir, 'entities.pkl'), 'wb') as f:
+      pickle.dump(all_entities, f)
+    with open(os.path.join(args.output_dir, 'benign_graph.pkl'), 'wb') as f:
+      pickle.dump(all_benign_edges, f)
+    with open(os.path.join(args.output_dir, 'eval_graph.pkl'), 'wb') as f:
+      pickle.dump(all_eval_edges, f)
+    entity2id = {e: i for i, e in enumerate(all_entities)}
+    with open(os.path.join(args.output_dir, 'entity2id.pkl'), 'wb') as f:
+      pickle.dump(entity2id, f)
+  else:
+    # Load the graphs
+    print("Loading entities & graphs...")
+    with open(os.path.join(args.output_dir, 'entities.pkl'), 'rb') as f:
+      all_entities = pickle.load(f)
+    with open(os.path.join(args.output_dir, 'benign_graph.pkl'), 'rb') as f:
+      all_benign_edges = pickle.load(f)
+    with open(os.path.join(args.output_dir, 'eval_graph.pkl'), 'rb') as f:
+      all_eval_edges = pickle.load(f)
+    with open(os.path.join(args.output_dir, 'entity2id.pkl'), 'rb') as f:
+      entity2id = pickle.load(f)
+
+  red_node_cnt = 0
+  for e in all_entities:
+    if all_entities[e]['label'] == 1:
+      red_node_cnt += 1
+  print(f'Number of red nodes: {red_node_cnt}')
   # Finally, run random walks or the modified DFS according to WATSON and get the generated sequences
   print("Generating sequences...")
-  benign_graph = gen_nx_graph(all_benign_edges)
-  eval_graph = gen_nx_graph(all_eval_edges)
-  # get the isolated nodes from the graphs
+  benign_graph = gen_nx_graph(all_benign_edges, entity2id)
+  eval_graph = gen_nx_graph(all_eval_edges, entity2id)
+
+  id2entity = {i: e for e, i in entity2id.items()}
+  benign_sequences = gen_all_valid_entity_seqs(benign_graph, id2entity, args.walk_len)
+  eval_sequences = gen_all_valid_entity_seqs(eval_graph, id2entity, args.walk_len)
+
+  # Save the walks
+  print("Saving walks...")
+  write_walks(benign_graph, id2entity, benign_sequences, os.path.join(
+      args.output_dir, 'benign_walks.txt'), all_entities)
+  write_walks(eval_graph, id2entity, eval_sequences, os.path.join(
+      args.output_dir, 'eval_walks.txt'), all_entities)
