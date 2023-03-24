@@ -353,7 +353,7 @@ def gen_all_valid_entity_seqs(G: nx.DiGraph, id2entity: dict, walk_len: int) -> 
     for seq in all_cur_seqs:
       cur_seq_num = 0
       for i in range(1, len(seq)):
-        if G.get_edge_data(seq[i-1], seq[i])['sequence'] < cur_seq_num:
+        if G.get_edge_data(seq[i - 1], seq[i])['sequence'] < cur_seq_num:
           cur_seq_num = -1
           break
         cur_seq_num = G.get_edge_data(seq[i - 1], seq[i])['sequence']
@@ -370,17 +370,17 @@ def write_walks(G: nx.DiGraph, id2entity: dict, walks: dict[list[str]], fname: s
     for node in walks:
       for walk in walks[node]:
         is_red = False
-        for i in range(1, len(walk)):
-          prev_node = id2entity[walk[i-1]]
+        for i in range(len(walk) - 1):
           cur_node = id2entity[walk[i]]
-          if all_entities[prev_node]['label'] == 1 or all_entities[cur_node]['label'] == 1:
+          next_node = id2entity[walk[i + 1]]
+          if all_entities[cur_node]['label'] == 1 or all_entities[next_node]['label'] == 1:
             is_red = True
-          f.write(
-              f'{id2entity[walk[i-1]]}\t{G.get_edge_data(walk[i-1], walk[i])["type"]}\t{id2entity[walk[i]]}')
+          f.write(f'{cur_node}\t{G.get_edge_data(walk[i], walk[i + 1])["type"]}\t')
+        f.write(f'{id2entity[walk[-1]]}\t')
         if is_red:
-          f.write('\t1')
+          f.write('1')
         else:
-          f.write('\t0')
+          f.write('0')
         f.write('\n')
 
 
@@ -393,7 +393,7 @@ if __name__ == "__main__":
                       CPR, ALL)')
   parser.add_argument('--walk_len', type=int, default=4, help='The length of the walk')
   parser.add_argument('--load', action='store_true',
-                      help='Load the existing graphs and walks from output_dir')
+                      help='Load the existing entities and edges from output_dir')
   args = parser.parse_args()
 
   all_entities = {}
@@ -441,11 +441,11 @@ if __name__ == "__main__":
 
     # Save the graphs
     print("Saving entities & graphs...")
-    with open(os.path.join(args.output_dir, 'entities.pkl'), 'wb') as f:
+    with open(os.path.join(args.output_dir, 'entity_dict.pkl'), 'wb') as f:
       pickle.dump(all_entities, f)
-    with open(os.path.join(args.output_dir, 'benign_graph.pkl'), 'wb') as f:
+    with open(os.path.join(args.output_dir, 'benign_graph_dict.pkl'), 'wb') as f:
       pickle.dump(all_benign_edges, f)
-    with open(os.path.join(args.output_dir, 'eval_graph.pkl'), 'wb') as f:
+    with open(os.path.join(args.output_dir, 'eval_graph_dict.pkl'), 'wb') as f:
       pickle.dump(all_eval_edges, f)
     entity2id = {e: i for i, e in enumerate(all_entities)}
     with open(os.path.join(args.output_dir, 'entity2id.pkl'), 'wb') as f:
@@ -453,11 +453,11 @@ if __name__ == "__main__":
   else:
     # Load the graphs
     print("Loading entities & graphs...")
-    with open(os.path.join(args.output_dir, 'entities.pkl'), 'rb') as f:
+    with open(os.path.join(args.output_dir, 'entity_dict.pkl'), 'rb') as f:
       all_entities = pickle.load(f)
-    with open(os.path.join(args.output_dir, 'benign_graph.pkl'), 'rb') as f:
+    with open(os.path.join(args.output_dir, 'benign_graph_dict.pkl'), 'rb') as f:
       all_benign_edges = pickle.load(f)
-    with open(os.path.join(args.output_dir, 'eval_graph.pkl'), 'rb') as f:
+    with open(os.path.join(args.output_dir, 'eval_graph_dict.pkl'), 'rb') as f:
       all_eval_edges = pickle.load(f)
     with open(os.path.join(args.output_dir, 'entity2id.pkl'), 'rb') as f:
       entity2id = pickle.load(f)
