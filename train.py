@@ -60,7 +60,7 @@ class NodeSequenceTrain(object):
       tqdm_batch_iterator = tqdm(self.train_dataloader)
       for idx, batch in enumerate(tqdm_batch_iterator):
         n_examples += 1
-        loss = self.model(batch)
+        loss = self.model(batch.to(self.device))
         total_loss += loss
         loss.backward()
         self.optimizer.step()
