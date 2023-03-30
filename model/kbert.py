@@ -26,16 +26,19 @@ class KBERT(nn.Module):
     self.loss_fct = nn.CrossEntropyLoss()
 
   def forward(self, batch):
+    self.device = torch.device(
+        "cuda:0" if torch.cuda.is_available() else "cpu")
     outputs = self.model(
-        input_ids=batch["input_ids"],
-        attention_mask=batch["attention_mask"],
+        input_ids=batch["input_ids"].to(self.device),
+        attention_mask=batch["attention_mask"].to(self.device),
         output_hidden_states=True,
     )
-    mlm_loss = self.loss_fct(outputs.logits.view(-1, self.hparams.vocab_size), batch["labels"].view(-1))
+    
+    mlm_loss = self.loss_fct(outputs.logits.view(-1, self.hparams.vocab_size), batch["labels"].view(-1).to(self.device))
     bert_outputs = outputs.hidden_states[-1]
 
     cls_losses = []
-    for idx, sep_pos in enumerate(batch["sep_pos"]):
+    for idx, sep_pos in enumerate(batch["sep_pos"].to(self.device)):
 
       sep_pos_nonzero = sep_pos.nonzero().view(-1)
 
@@ -43,9 +46,11 @@ class KBERT(nn.Module):
       sep_logits = self.classification(sep_out)
       sep_logits = sep_logits.squeeze(-1)
 
-      target_id = batch["sep_labels"][idx]
-
-      cls_loss = self.loss_fct(sep_logits, target_id)
+      target_id = batch["sep_labels"].to(self.device)[idx]
+      
+      # if len(sep_pos_nonzero) != sep_logits.size()[0]:
+      #   print(sep_out)
+      cls_loss = self.loss_fct(sep_logits, target_id[:len(sep_pos_nonzero)])
 
       cls_losses.append(cls_loss)
 
@@ -54,4 +59,4 @@ class KBERT(nn.Module):
     else:
       cls_loss = torch.mean(torch.stack(cls_losses, dim=0), dim=-1)
 
-    return mlm_loss + cls_loss
+    return mlm_loss, cls_loss, sep_logits
