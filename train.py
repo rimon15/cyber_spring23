@@ -79,8 +79,12 @@ class NodeSequenceTrain(object):
         # break
       print(
           " ** | Epoch {:03d} | Loss {:.4f} |".format(epoch + 1, total_loss / n_examples))
-      self.validation()
-      # self.save_best_model(valid_epoch_loss, epoch, model, optimizer, criterion)
+      prev_acc, prev_p, prev_r, prev_f, prev_perplexity = 0.0, 0.0, 0.0, 0.0, float("-inf")
+      acc, p, r, f, perplexity = self.validation()
+      if perplexity < prev_perplexity or acc > prev_acc:
+        pass
+        # TODO:save model.
+      prev_acc, prev_p, prev_r, prev_f, prev_perplexity = acc, p, r, f, perplexity
 
   def validation(self):
     self.model.eval()
@@ -114,4 +118,5 @@ class NodeSequenceTrain(object):
     p, r, f, _ = precision_recall_fscore_support(y, pred)
     print('Acc: {}, Pre: {}, Rec: {}, F1: {}, Perpl: {}'
           .format(acc, p, r, f, perplexity))
+    return acc, p, r, f, perplexity
 
