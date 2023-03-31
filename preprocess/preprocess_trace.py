@@ -308,30 +308,29 @@ def reduce_noise_cpr(entities: dict, edges: dict) -> None:
   pass
 
 
-def reduce_noise_long_seqs(entities: dict, edges: dict) -> None:
+def reduce_noise_seqs(entities: dict, edges: dict, noisy_ents: list) -> None:
   print("Removing long sequences (firefox Prefs flags)")
-  long_seqs = set()
   edge_uuids = set()
   for uuid in tqdm.tqdm(edges, total=len(edges)):
     src_node = edges[uuid]['subject']
     dest_node = edges[uuid]['object']
     if entities[src_node]['type'] == 'process':
-      if '-intPrefs' in entities[src_node]['cmdLine'] or '-boolPrefs' in entities[src_node]['cmdLine'] or \
-              '-stringPrefs' in entities[src_node]['cmdLine']:
-        long_seqs.add(src_node)
-        edge_uuids.add(uuid)
+      # if '-intPrefs' in entities[src_node]['cmdLine'] or '-boolPrefs' in entities[src_node]['cmdLine'] or \
+      #         '-stringPrefs' in entities[src_node]['cmdLine']:
+      for ne in noisy_ents:
+        if ne in entities[src_node]['cmdLine']:
+          edge_uuids.add(uuid)
     if entities[dest_node]['type'] == 'process':
-      if '-intPrefs' in entities[dest_node]['cmdLine'] or '-boolPrefs' in entities[dest_node]['cmdLine'] or \
-              '-stringPrefs' in entities[dest_node]['cmdLine']:
-        long_seqs.add(dest_node)
-        edge_uuids.add(uuid)
+      # if '-intPrefs' in entities[dest_node]['cmdLine'] or '-boolPrefs' in entities[dest_node]['cmdLine'] or \
+      #         '-stringPrefs' in entities[dest_node]['cmdLine']:
+      for ne in noisy_ents:
+        if ne in entities[dest_node]['cmdLine']:
+          edge_uuids.add(uuid)
 
-  for uuid in long_seqs:
-    del entities[uuid]
   for edge_uuid in edge_uuids:
     del edges[edge_uuid]
 
-  print(f'Removed {len(long_seqs)} long sequences w/ {len(edge_uuids)} edges')
+  print(f'Removed {len(edge_uuids)} edges of long sequences')
 
 
 def gen_nx_graph(edges: dict, entity2id: dict) -> nx.DiGraph:
@@ -466,8 +465,22 @@ if __name__ == "__main__":
     elif args.reduce_noise == 'CPR':
       reduce_noise_cpr(all_entities, all_benign_edges)
       reduce_noise_cpr(all_entities, all_eval_edges)
-    reduce_noise_long_seqs(all_entities, all_benign_edges)
-    reduce_noise_long_seqs(all_entities, all_eval_edges)
+
+    # Overall noise reduction that is always applied
+    noisy_entities = ['firefox']
+    reduce_noise_seqs(all_entities, all_benign_edges)
+    reduce_noise_seqs(all_entities, all_eval_edges)
+    # Remove any entities that have been reduced from reduce_noise_seqs
+    noisy_entities = set()
+    for e in all_entities:
+      if all_entities[e]['type'] == 'process':
+        # if '-intPrefs' in all_entities[e]['cmdLine'] or '-boolPrefs' in all_entities[e]['cmdLine'] or \
+        #         '-stringPrefs' in all_entities[e]['cmdLine']:
+        for ne in noisy_entities:
+          if ne in all_entities[e]['cmdLine']:
+            noisy_entities.add(e)
+    for e in noisy_entities:
+      del all_entities[e]
 
     # Save the graphs
     print("Saving entities & graphs...")
@@ -497,7 +510,7 @@ if __name__ == "__main__":
     if all_entities[e]['label'] == 1:
       red_node_cnt += 1
   print(f'Number of red nodes: {red_node_cnt}')
-  # Finally, run random walks or the modified DFS according to WATSON and get the generated sequences
+  # Finally, run sequence generation w/ fixed path length
   print("Generating sequences...")
   benign_graph = gen_nx_graph(all_benign_edges, entity2id)
   eval_graph = gen_nx_graph(all_eval_edges, entity2id)

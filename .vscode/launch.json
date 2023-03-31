@@ -14,14 +14,11 @@
         "--root_dir",
         "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/",
         "--data_dir",
-<<<<<<< Updated upstream
-        "data/",
-=======
         "data/trace_phishing_base",
->>>>>>> Stashed changes
         "--tokenizer_dir",
         "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/embeddings/tokenizer/",
-        //"--gpu_ids", "3"
+        "--gpu_ids",
+        "3"
       ],
       "purpose": [
         "debug-in-terminal"
@@ -37,6 +34,25 @@
       "args": [
         "--root_dir",
         "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/",
+        "--raw_dir",
+        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/preprocess/raw_text/trace_phishing_base/"
+      ],
+      "purpose": [
+        "debug-in-terminal"
+      ],
+      "justMyCode": true
+    },
+    {
+      "name": "Python: extract raw",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/preprocess/extract_raw_from_dict.py",
+      "console": "integratedTerminal",
+      "args": [
+        "--ent_dict_fpath",
+        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/data/trace_phishing_base/entity_dict.pkl",
+        "--out_path",
+        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/preprocess/raw_text/trace_phishing_base",
       ],
       "purpose": [
         "debug-in-terminal"
@@ -52,23 +68,16 @@
       "args": [
         "--trace_dir",
         "/mnt/raid0_ssd_8tb/dataset/trace/data/phishing",
-<<<<<<< Updated upstream
-        "--output_dir",
-        "${workspaceFolder}/data/trace_phishing",
-        "--labels_file",
-        "${workspaceFolder}/preprocess/phishing_attack_red_labels.json",
-=======
         //"/mnt/raid0_ssd_8tb/dataset/trace/data/pine_backdoor",
         "--output_dir",
-        "${workspaceFolder}/data/trace_phishing_base",
+        "${workspaceFolder}/data/trace_phishing_reduced_files_firefox",
         //"${workspaceFolder}/data/pine_backdoor_base",
         "--labels_file",
         "${workspaceFolder}/preprocess/phishing_attack_red_labels.json",
         //"${workspaceFolder}/preprocess/pine_backdoor_red_labels.json",
->>>>>>> Stashed changes
         "--reduce_noise",
         "TEMP_FILES",
-        "--load"
+        //"--load"
       ],
       "purpose": [
         "debug-in-terminal"

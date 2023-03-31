@@ -15,6 +15,7 @@ import os
 class NodeSequenceTrain(object):
   def __init__(self, hparams):
     self.hparams = hparams
+    self.tokenizer = AutoTokenizer.from_pretrained(self.hparams.tokenizer_dir)
     self._logger = logging.getLogger(__name__)
 
     np.random.seed(hparams.random_seed)
@@ -24,7 +25,6 @@ class NodeSequenceTrain(object):
     torch.backends.cudnn.deterministic = True
 
   def build_dataloader(self):
-    self.tokenizer = AutoTokenizer.from_pretrained(self.hparams.tokenizer_dir)
     self.dataset = NodeSequenceDataset(self.hparams, self.tokenizer)
     train_size = int(0.95 * len(self.dataset))
     dev_size = len(self.dataset) - train_size
@@ -41,7 +41,7 @@ class NodeSequenceTrain(object):
     self.dev_dataloader = DataLoader(
         self.dev_dataset,
         batch_size=1,
-        shuffle=True,
+        shuffle=False,
     )
 
   def build_model(self):
@@ -67,6 +67,7 @@ class NodeSequenceTrain(object):
 
     total_loss = 0
     n_examples = 0
+    prev_acc, prev_p, prev_r, prev_f, prev_perplexity = 0.0, 0.0, 0.0, 0.0, float("-inf")
     for epoch in range(self.hparams.num_epochs):
       self.model.train()
       tqdm_batch_iterator = tqdm(self.train_dataloader)
@@ -77,20 +78,19 @@ class NodeSequenceTrain(object):
         total_loss += loss
         loss.backward()
         self.optimizer.step()
-        # break
       print(
           " ** | Epoch {:03d} | Loss {:.4f} |".format(epoch + 1, total_loss / n_examples))
-      prev_acc, prev_p, prev_r, prev_f, prev_perplexity = 0.0, 0.0, 0.0, 0.0, float("-inf")
-      acc, p, r, f, perplexity = self.validation()
-      if perplexity < prev_perplexity or acc > prev_acc:
-        self._logger.info("Saving model...")
-        torch.save({
-            'epoch': epoch + 1,
-            'model_state_dict': self.model.state_dict(),
-            'optimizer_state_dict': self.optimizer.state_dict(),
-            'loss': loss,
-        }, os.path.join(self.hparams.root_dir + self.hparams.save_dirpath, "model_{}.pt".format(epoch)))
-      prev_acc, prev_p, prev_r, prev_f, prev_perplexity = acc, p, r, f, perplexity
+      if (epoch + 1) % self.hparams.save_every == 0:
+        acc, p, r, f, perplexity = self.validation()
+        if perplexity < prev_perplexity or acc > prev_acc:
+          self._logger.info("Saving model...")
+          torch.save({
+              'epoch': epoch + 1,
+              'model_state_dict': self.model.state_dict(),
+              'optimizer_state_dict': self.optimizer.state_dict(),
+              'loss': loss,
+          }, os.path.join(self.hparams.root_dir + self.hparams.save_dirpath, "model_{}.pt".format(epoch)))
+        prev_acc, prev_p, prev_r, prev_f, prev_perplexity = acc, p, r, f, perplexity
 
   def validation(self):
     self.model.eval()

@@ -21,7 +21,7 @@ class NodeSequenceDataset(Dataset):
       '''
       self.entity_dict = pickle.load(pkl_handler)
 
-    with open(os.path.join(hparams.root_dir + hparams.data_dir, "walk_benign.txt"), "r") as data_handler:
+    with open(os.path.join(hparams.root_dir + hparams.data_dir, "benign_walks.txt"), "r") as data_handler:
       '''
       e.g., id, relation, ... relation, id
       -3832575887008287552	EVENT_CREATE_OBJECT	-4185163237277691623	EVENT_FORK	-3442430275422800032	EVENT_EXECUTE	108003145666665265	EVENT_FORK	-2067566085360019418
@@ -48,10 +48,21 @@ class NodeSequenceDataset(Dataset):
     seqs = "[CLS] "
     elements = example.strip().split("\t")
 
-    for e in elements:
-      if e.isdigit() or e.lstrip('-').isdigit():
-        seqs = seqs + self.entity_dict[int(e)][0] + " [SEP] "
-        sep_labels.append(self.sep_category[self.entity_dict[int(e)][1]])
+    for e in elements[:-1]:
+      if 'event' not in e:
+        e_type = self.entity_dict[e]['type']
+        if e_type == 'process':
+          seqs = seqs + self.entity_dict[e]['cmdLine']
+        elif e_type == 'file':
+          seqs = seqs + self.entity_dict[e]['path']
+        elif e_type == 'socket':
+          seqs = seqs + self.entity_dict[e]['remoteAddress']
+        else:
+          raise ValueError("Unknown entity type: {}".format(e_type))
+        seqs += " [SEP] "
+        sep_labels.append(self.sep_category[e_type])
+        # seqs = seqs + self.entity_dict[e][0] + " [SEP] "
+        # sep_labels.append(self.sep_category[self.entity_dict[e][1]])
       else:
         seqs = seqs + "[" + e + "] "
 
