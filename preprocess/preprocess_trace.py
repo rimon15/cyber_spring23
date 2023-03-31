@@ -294,16 +294,44 @@ def reduce_noise_temp_files(entities: dict, edges: dict) -> None:
       if len(pids) == 1:
         temp_files.append(uuid)
 
+  edge_cnt = 0
   for uuid in temp_files:
     del entities[uuid]
     for edge_uuid in files_to_edge_uuids[uuid]:
       del edges[edge_uuid]
+      edge_cnt += 1
 
-  print(f'Removed {len(temp_files)} temporary files')
+  print(f'Removed {len(temp_files)} temporary files w/ {edge_cnt} edges')
 
 
 def reduce_noise_cpr(entities: dict, edges: dict) -> None:
   pass
+
+
+def reduce_noise_long_seqs(entities: dict, edges: dict) -> None:
+  print("Removing long sequences (firefox Prefs flags)")
+  long_seqs = set()
+  edge_uuids = set()
+  for uuid in tqdm.tqdm(edges, total=len(edges)):
+    src_node = edges[uuid]['subject']
+    dest_node = edges[uuid]['object']
+    if entities[src_node]['type'] == 'process':
+      if '-intPrefs' in entities[src_node]['cmdLine'] or '-boolPrefs' in entities[src_node]['cmdLine'] or \
+              '-stringPrefs' in entities[src_node]['cmdLine']:
+        long_seqs.add(src_node)
+        edge_uuids.add(uuid)
+    if entities[dest_node]['type'] == 'process':
+      if '-intPrefs' in entities[dest_node]['cmdLine'] or '-boolPrefs' in entities[dest_node]['cmdLine'] or \
+              '-stringPrefs' in entities[dest_node]['cmdLine']:
+        long_seqs.add(dest_node)
+        edge_uuids.add(uuid)
+
+  for uuid in long_seqs:
+    del entities[uuid]
+  for edge_uuid in edge_uuids:
+    del edges[edge_uuid]
+
+  print(f'Removed {len(long_seqs)} long sequences w/ {len(edge_uuids)} edges')
 
 
 def gen_nx_graph(edges: dict, entity2id: dict) -> nx.DiGraph:
@@ -409,7 +437,7 @@ if __name__ == "__main__":
 
     # First, load all entities from the files
     all_entities = {}
-    files = glob.glob(args.trace_dir + '/*')
+    files = glob.glob(args.trace_dir + '/*.json*')
     for f in tqdm.tqdm(files, total=len(files)):
       parse_trace_entities(f, all_entities, red_labels)
 
@@ -438,6 +466,8 @@ if __name__ == "__main__":
     elif args.reduce_noise == 'CPR':
       reduce_noise_cpr(all_entities, all_benign_edges)
       reduce_noise_cpr(all_entities, all_eval_edges)
+    reduce_noise_long_seqs(all_entities, all_benign_edges)
+    reduce_noise_long_seqs(all_entities, all_eval_edges)
 
     # Save the graphs
     print("Saving entities & graphs...")

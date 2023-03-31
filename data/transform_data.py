@@ -16,7 +16,7 @@ class NodeSequenceDataset(Dataset):
 
     with open(os.path.join(hparams.root_dir + hparams.data_dir, "entity_dict.pkl"), "rb") as pkl_handler:
       '''
-      e.g., key: id, value: (info, type) 
+      e.g., key: id, value: (info, type)
       6328899306454701882: ('/usr/share/doc/libfile-fcntllock-perl', 'file')
       '''
       self.entity_dict = pickle.load(pkl_handler)
@@ -64,8 +64,6 @@ class NodeSequenceDataset(Dataset):
         sep_pos.append(0)
 
     attention_mask = [1] * len(tokenized_seqs)
-
-
 
     while len(tokenized_seqs) < self.hparams.max_sequence_len:
       tokenized_seqs.append("[PAD]")

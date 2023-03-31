@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader, random_split
 from model.kbert import KBERT
 from transformers import DataCollatorForLanguageModeling, AutoTokenizer
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+import os
 
 
 class NodeSequenceTrain(object):
@@ -82,8 +83,13 @@ class NodeSequenceTrain(object):
       prev_acc, prev_p, prev_r, prev_f, prev_perplexity = 0.0, 0.0, 0.0, 0.0, float("-inf")
       acc, p, r, f, perplexity = self.validation()
       if perplexity < prev_perplexity or acc > prev_acc:
-        pass
-        # TODO:save model.
+        self._logger.info("Saving model...")
+        torch.save({
+            'epoch': epoch + 1,
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'loss': loss,
+        }, os.path.join(self.hparams.root_dir + self.hparams.save_dirpath, "model_{}.pt".format(epoch)))
       prev_acc, prev_p, prev_r, prev_f, prev_perplexity = acc, p, r, f, perplexity
 
   def validation(self):
@@ -119,4 +125,3 @@ class NodeSequenceTrain(object):
     print('Acc: {}, Pre: {}, Rec: {}, F1: {}, Perpl: {}'
           .format(acc, p, r, f, perplexity))
     return acc, p, r, f, perplexity
-
