@@ -18,6 +18,7 @@ Train BERT-like tokeinzer for TC dataset
 parser = ArgumentParser()
 parser.add_argument("--root_dir", type=str, help='Path to cyber_spring23/ dir', required=True)
 parser.add_argument("--raw_dir", type=str, help='Path to raw_text/ dir', required=True)
+parser.add_argument("--tokenizer_dir", type=str, help='Path to save tokenizer', required=True)
 args = parser.parse_args()
 
 batch_size = 1000
@@ -34,7 +35,7 @@ def batch_iterator():
     yield dataset['text'][i: i + batch_size]["text"]
 
 
-tokenizer = Tokenizer(models.WordPiece(unk_token="[UNK]"))  # typo unl_token -> unk_token?
+tokenizer = Tokenizer(models.WordPiece(unk_token="[UNK]"))
 tokenizer.normalizer = normalizers.BertNormalizer(lowercase=True)
 
 tokenizer.pre_tokenizer = pre_tokenizers.BertPreTokenizer()
@@ -58,6 +59,7 @@ Save tokenizer
 '''
 new_tokenizer = BertTokenizerFast(tokenizer_object=tokenizer)
 # "/home/ykim/workspace/cyber_spring23/embeddings/tokenizer/")
+new_tokenizer.save_pretrained(args.tokenizer_dir)
 new_tokenizer.save_pretrained(os.path.join(args.root_dir, 'embeddings/tokenizer'))
 
 

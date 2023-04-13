@@ -14,11 +14,15 @@
         "--root_dir",
         "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/",
         "--data_dir",
+        //"data/pine_backdoor_base",
         "data/trace_phishing_base",
         "--tokenizer_dir",
-        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/embeddings/tokenizer/",
+        //"/mnt/raid0_ssd_8tb/rimon/cyber_spring23/embeddings/pine_backdoor_tokenizer/",
+        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/embeddings/trace_phishing_base_tokenizer/",
         "--gpu_ids",
-        "3"
+        "3",
+        "--mode",
+        "test" //"train"
       ],
       "purpose": [
         "debug-in-terminal"
@@ -35,7 +39,10 @@
         "--root_dir",
         "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/",
         "--raw_dir",
-        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/preprocess/raw_text/trace_phishing_base/"
+        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/preprocess/raw_text/pine_backdoor_base/",
+        "--tokenizer_dir",
+        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/embeddings/pine_backdoor_tokenizer",
+        //"/mnt/raid0_ssd_8tb/rimon/cyber_spring23/preprocess/raw_text/trace_phishing_base/"
       ],
       "purpose": [
         "debug-in-terminal"
@@ -43,17 +50,33 @@
       "justMyCode": true
     },
     {
-      "name": "Python: extract raw",
+      "name": "Python: extract raw trace",
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/preprocess/extract_raw_from_dict.py",
       "console": "integratedTerminal",
       "args": [
         "--ent_dict_fpath",
-        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/data/trace_phishing_base/entity_dict.pkl",
+        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/data/pine_backdoor_base/entity_dict.pkl",
         "--out_path",
-        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/preprocess/raw_text/trace_phishing_base",
+        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/preprocess/raw_text/pine_backdoor_base",
+        //"--ent_dict_fpath",
+        //"/mnt/raid0_ssd_8tb/rimon/cyber_spring23/data/trace_phishing_reduced_files_firefox/entity_dict.pkl",
+        //"--out_path",
+        //"/mnt/raid0_ssd_8tb/rimon/cyber_spring23/preprocess/raw_text/trace_phishing_reduced_files_firefox",
       ],
+      "purpose": [
+        "debug-in-terminal"
+      ],
+      "justMyCode": true
+    },
+    {
+      "name": "Python: extract raw OpTC",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/preprocess/extract_raw_optc.py",
+      "console": "integratedTerminal",
+      "args": [],
       "purpose": [
         "debug-in-terminal"
       ],
@@ -67,17 +90,20 @@
       "console": "integratedTerminal",
       "args": [
         "--trace_dir",
-        "/mnt/raid0_ssd_8tb/dataset/trace/data/phishing",
-        //"/mnt/raid0_ssd_8tb/dataset/trace/data/pine_backdoor",
+        //"/mnt/raid0_ssd_8tb/dataset/trace/data/phishing",
+        "/mnt/raid0_ssd_8tb/dataset/trace/data/pine_backdoor",
         "--output_dir",
-        "${workspaceFolder}/data/trace_phishing_reduced_files_firefox",
-        //"${workspaceFolder}/data/pine_backdoor_base",
+        //"${workspaceFolder}/data/trace_phishing_base",
+        "${workspaceFolder}/data/pine_backdoor_base",
         "--labels_file",
-        "${workspaceFolder}/preprocess/phishing_attack_red_labels.json",
+        //"${workspaceFolder}/preprocess/phishing_attack_red_labels.json",
+        "${workspaceFolder}/preprocess/drakon_firefox_inmem.json",
         //"${workspaceFolder}/preprocess/pine_backdoor_red_labels.json",
         "--reduce_noise",
-        "TEMP_FILES",
+        "NONE", //"TEMP_FILES",
         //"--load"
+        //"--walk_len",
+        //"4"
       ],
       "purpose": [
         "debug-in-terminal"

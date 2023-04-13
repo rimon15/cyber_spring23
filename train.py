@@ -67,22 +67,25 @@ class NodeSequenceTrain(object):
 
     total_loss = 0
     n_examples = 0
-    prev_acc, prev_p, prev_r, prev_f, prev_perplexity = 0.0, 0.0, 0.0, 0.0, float("-inf")
+    prev_acc, prev_p, prev_r, prev_f, prev_perplexity = 0.0, 0.0, 0.0, 0.0, float("inf")
     for epoch in range(self.hparams.num_epochs):
       self.model.train()
       tqdm_batch_iterator = tqdm(self.train_dataloader)
       for idx, batch in enumerate(tqdm_batch_iterator):
         n_examples += 1
-        mlm_loss, cls_loss, _ = self.model(batch.to(self.device))
-        loss = mlm_loss + cls_loss
+        # mlm_loss, cls_loss, _ = self.model(batch.to(self.device))
+        mlm_loss, _ = self.model(batch.to(self.device))
+        loss = mlm_loss  # + cls_loss
         total_loss += loss
         loss.backward()
         self.optimizer.step()
+        #break
       print(
           " ** | Epoch {:03d} | Loss {:.4f} |".format(epoch + 1, total_loss / n_examples))
       if (epoch + 1) % self.hparams.save_every == 0:
-        acc, p, r, f, perplexity = self.validation()
-        if perplexity < prev_perplexity or acc > prev_acc:
+        # acc, p, r, f, perplexity = self.validation()
+        perplexity = self.validation()
+        if perplexity < prev_perplexity:
           self._logger.info("Saving model...")
           torch.save({
               'epoch': epoch + 1,
@@ -90,7 +93,7 @@ class NodeSequenceTrain(object):
               'optimizer_state_dict': self.optimizer.state_dict(),
               'loss': loss,
           }, os.path.join(self.hparams.root_dir + self.hparams.save_dirpath, "model_{}.pt".format(epoch)))
-        prev_acc, prev_p, prev_r, prev_f, prev_perplexity = acc, p, r, f, perplexity
+        # prev_acc, prev_p, prev_r, prev_f, prev_perplexity = acc, p, r, f, perplexity
 
   def validation(self):
     self.model.eval()
@@ -113,15 +116,18 @@ class NodeSequenceTrain(object):
         dev_batch['labels'] = labels
         dev_batch['input_ids'] = masked_input
         dev_batch['attention_mask'] = repeat_attn
-        mlm_loss, cls_loss, sep_logits = self.model(dev_batch)
-        pred += torch.squeeze(torch.argmax(
-            torch.nn.functional.softmax(sep_logits, dim=1), dim=1)).tolist()
-        y += torch.squeeze(dev_batch['sep_labels'])[:sep_logits.size(0)].tolist()
-        assert len(pred) == len(y)
+        mlm_loss, _ = self.model(dev_batch)
+        # mlm_loss, cls_loss, sep_logits = self.model(dev_batch)
+        # pred += torch.squeeze(torch.argmax(
+        #     torch.nn.functional.softmax(sep_logits, dim=1), dim=1)).tolist()
+        # y += torch.squeeze(dev_batch['sep_labels'])[:sep_logits.size(0)].tolist()
+        # assert len(pred) == len(y)
         perplexity += mlm_loss.item()
+        # break
     perplexity = np.exp(mlm_loss.item())
-    acc = accuracy_score(y, pred)
-    p, r, f, _ = precision_recall_fscore_support(y, pred)
-    print('Acc: {}, Pre: {}, Rec: {}, F1: {}, Perpl: {}'
-          .format(acc, p, r, f, perplexity))
-    return acc, p, r, f, perplexity
+    # acc = accuracy_score(y, pred)
+    # p, r, f, _ = precision_recall_fscore_support(y, pred)
+    # print('Acc: {}, Pre: {}, Rec: {}, F1: {}, Perpl: {}'
+    #       .format(acc, p, r, f, perplexity))
+    print(f'Loss: {mlm_loss.item()}, Perplexity: {perplexity}')
+    return perplexity  # acc, p, r, f, perplexity

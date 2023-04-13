@@ -22,41 +22,58 @@ class KBERT(nn.Module):
         nn.Linear(self.hparams.bert_hidden_dim,
                   self.hparams.num_categories)
     )
+    # self.token_softmax = nn.Softmax(dim=1)
 
     self.loss_fct = nn.CrossEntropyLoss()
 
   def forward(self, batch):
     self.device = torch.device(
         "cuda:0" if torch.cuda.is_available() else "cpu")
-    outputs = self.model(
-        input_ids=batch["input_ids"].to(self.device),
-        attention_mask=batch["attention_mask"].to(self.device),
-        output_hidden_states=True,
-    )
-    
-    mlm_loss = self.loss_fct(outputs.logits.view(-1, self.hparams.vocab_size), batch["labels"].view(-1).to(self.device))
-    bert_outputs = outputs.hidden_states[-1]
+    if self.training:
+      outputs = self.model(
+          input_ids=batch["input_ids"].to(self.device),
+          attention_mask=batch["attention_mask"].to(self.device),
+          output_hidden_states=True,
+      )
 
-    cls_losses = []
-    for idx, sep_pos in enumerate(batch["sep_pos"].to(self.device)):
+      mlm_loss = self.loss_fct(outputs.logits.view(-1, self.hparams.vocab_size),
+                               batch["labels"].view(-1).to(self.device))
+      bert_outputs = outputs.hidden_states[-1]
 
-      sep_pos_nonzero = sep_pos.nonzero().view(-1)
+      cls_losses = []
 
-      sep_out = bert_outputs[idx, sep_pos_nonzero, :]
-      sep_logits = self.classification(sep_out)
-      sep_logits = sep_logits.squeeze(-1)
+      return mlm_loss, None  # , cls_loss, sep_logits
+    # for idx, sep_pos in enumerate(batch["sep_pos"].to(self.device)):
 
-      target_id = batch["sep_labels"].to(self.device)[idx]
-      
-      # if len(sep_pos_nonzero) != sep_logits.size()[0]:
-      #   print(sep_out)
-      cls_loss = self.loss_fct(sep_logits, target_id[:len(sep_pos_nonzero)])
+    #   sep_pos_nonzero = sep_pos.nonzero().view(-1)
 
-      cls_losses.append(cls_loss)
+    #   sep_out = bert_outputs[idx, sep_pos_nonzero, :]
+    #   sep_logits = self.classification(sep_out)
+    #   sep_logits = sep_logits.squeeze(-1)
 
-    if len(cls_losses) == 0:
-      cls_loss = torch.tensor(0).float().to(torch.cuda.current_device())
+    #   target_id = batch["sep_labels"].to(self.device)[idx]
+
+    #   # if len(sep_pos_nonzero) != sep_logits.size()[0]:
+    #   #   print(sep_out)
+    #   cls_loss = self.loss_fct(sep_logits, target_id[:len(sep_pos_nonzero)])
+
+    #   cls_losses.append(cls_loss)
+
+    # if len(cls_losses) == 0:
+    #   cls_loss = torch.tensor(0).float().to(torch.cuda.current_device())
+    # else:
+    #   cls_loss = torch.mean(torch.stack(cls_losses, dim=0), dim=-1)
+
+    # wrong eval
+    # outputs = self.model(input_ids=batch["input_ids"].to(self.device))
+    # outputs = outputs.logits.view(self.hparams.max_sequence_len, self.hparams.vocab_size)
+    # outputs = self.token_softmax(outputs)
+    # token_ids = torch.argmax(outputs, dim=1)
+
+    # other eval
     else:
-      cls_loss = torch.mean(torch.stack(cls_losses, dim=0), dim=-1)
-
-    return mlm_loss, cls_loss, sep_logits
+      preds = self.model(batch['tokens_tensor'].to(self.device),
+                         batch['segments_tensor'].to(self.device))
+      preds = nn.functional.softmax(preds[0], dim=-1)
+      return None, preds
+    # torch.squeeze(torch.argmax(self.token_softmax(outputs.logits), dim=1)).tolist()

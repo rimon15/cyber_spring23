@@ -41,6 +41,7 @@ class NodeSequenceDataset(Dataset):
     feature["sep_pos"] = torch.tensor(sep_pos).long()
     feature["attention_mask"] = torch.tensor(attention_mask).long()
     feature["sep_labels"] = torch.tensor(sep_labels).long()  # num of [sep]
+    feature['red_label'] = torch.tensor([int(self.inputs[index].strip().split("\t")[-1])]).long()
     return feature
 
   def prepare_features(self, example):

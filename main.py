@@ -3,18 +3,19 @@ import argparse
 import collections
 from collections import defaultdict
 from train import NodeSequenceTrain
+from eval import NodeSequenceTest
 import random
 from transformers import AutoTokenizer
 
 MODEL_PARAMS = defaultdict(
     gpu_ids=[0],  # [0,1,2,3]
 
-    train_batch_size=16,  # 32
+    train_batch_size=32,  # 16
     # vocab_size = 4339,
     learning_rate=3e-05,  # 2e-05
 
     dropout_keep_prob=0.8,
-    num_epochs=5,
+    num_epochs=50,
     max_gradient_norm=5,
     adam_epsilon=1e-8,
     weight_decay=0.0,
@@ -37,6 +38,7 @@ MODEL_PARAMS = defaultdict(
     save_every=5,
 
     random_seed=random.sample(range(1000, 10000), 1)[0],
+    model_path='results/model_14_best.pt'
 )
 
 PARAMS_MAP = {
@@ -48,6 +50,12 @@ def train_model(args, hparams):
   hparams = collections.namedtuple("HParams", sorted(hparams.keys()))(**hparams)
   model = NodeSequenceTrain(hparams)
   model.train()
+
+
+def test_model(args, hparams):
+  hparams = collections.namedtuple("HParams", sorted(hparams.keys()))(**hparams)
+  model = NodeSequenceTest(hparams)
+  model.test()
 
 
 if __name__ == '__main__':
@@ -66,6 +74,7 @@ if __name__ == '__main__':
                           help="model save path")  # bert-base-uncased, bert-post-uncased
   arg_parser.add_argument("--gpu_ids", dest="gpu_ids", type=str,
                           help="gpu_ids", default="")
+  arg_parser.add_argument("--mode", dest="mode", type=str, default="train", help="train or test")
 
   args = arg_parser.parse_args()
   os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_ids
@@ -79,4 +88,7 @@ if __name__ == '__main__':
   hparams["tokenizer_dir"] = args.tokenizer_dir
   hparams['vocab_size'] = vocab_size
 
-  train_model(args, hparams)
+  if args.mode == "train":
+    train_model(args, hparams)
+  elif args.mode == "test":
+    test_model(args, hparams)

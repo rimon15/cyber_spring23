@@ -308,8 +308,8 @@ def reduce_noise_cpr(entities: dict, edges: dict) -> None:
   pass
 
 
-def reduce_noise_seqs(entities: dict, edges: dict, noisy_ents: list) -> None:
-  print("Removing long sequences (firefox Prefs flags)")
+def reduce_noise_seqs(entities: dict, edges: dict, noisy_proc: list, noisy_file: list) -> None:
+  print("Removing noisy nodes and edges")
   edge_uuids = set()
   for uuid in tqdm.tqdm(edges, total=len(edges)):
     src_node = edges[uuid]['subject']
@@ -317,20 +317,28 @@ def reduce_noise_seqs(entities: dict, edges: dict, noisy_ents: list) -> None:
     if entities[src_node]['type'] == 'process':
       # if '-intPrefs' in entities[src_node]['cmdLine'] or '-boolPrefs' in entities[src_node]['cmdLine'] or \
       #         '-stringPrefs' in entities[src_node]['cmdLine']:
-      for ne in noisy_ents:
+      for ne in noisy_proc:
         if ne in entities[src_node]['cmdLine']:
           edge_uuids.add(uuid)
     if entities[dest_node]['type'] == 'process':
       # if '-intPrefs' in entities[dest_node]['cmdLine'] or '-boolPrefs' in entities[dest_node]['cmdLine'] or \
       #         '-stringPrefs' in entities[dest_node]['cmdLine']:
-      for ne in noisy_ents:
+      for ne in noisy_proc:
         if ne in entities[dest_node]['cmdLine']:
+          edge_uuids.add(uuid)
+    if entities[src_node]['type'] == 'file':
+      for ne in noisy_file:
+        if ne in entities[src_node]['path']:
+          edge_uuids.add(uuid)
+    if entities[dest_node]['type'] == 'file':
+      for ne in noisy_file:
+        if ne in entities[dest_node]['path']:
           edge_uuids.add(uuid)
 
   for edge_uuid in edge_uuids:
     del edges[edge_uuid]
 
-  print(f'Removed {len(edge_uuids)} edges of long sequences')
+  print(f'Removed {len(edge_uuids)} edges of noisy nodes/edges')
 
 
 def gen_nx_graph(edges: dict, entity2id: dict) -> nx.DiGraph:
@@ -467,17 +475,20 @@ if __name__ == "__main__":
       reduce_noise_cpr(all_entities, all_eval_edges)
 
     # Overall noise reduction that is always applied
-    noisy_entities = ['firefox']
-    reduce_noise_seqs(all_entities, all_benign_edges)
-    reduce_noise_seqs(all_entities, all_eval_edges)
+    noisy_procs = ['firefox', ]
+    noisy_files = ['.so', ]
+    reduce_noise_seqs(all_entities, all_benign_edges, noisy_procs, noisy_files)
+    reduce_noise_seqs(all_entities, all_eval_edges, noisy_procs, noisy_files)
     # Remove any entities that have been reduced from reduce_noise_seqs
     noisy_entities = set()
     for e in all_entities:
       if all_entities[e]['type'] == 'process':
-        # if '-intPrefs' in all_entities[e]['cmdLine'] or '-boolPrefs' in all_entities[e]['cmdLine'] or \
-        #         '-stringPrefs' in all_entities[e]['cmdLine']:
-        for ne in noisy_entities:
+        for ne in noisy_procs:
           if ne in all_entities[e]['cmdLine']:
+            noisy_entities.add(e)
+      elif all_entities[e]['type'] == 'file':
+        for ne in noisy_files:
+          if ne in all_entities[e]['path']:
             noisy_entities.add(e)
     for e in noisy_entities:
       del all_entities[e]
