@@ -14,15 +14,14 @@
         "--root_dir",
         "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/",
         "--data_dir",
-        //"data/pine_backdoor_base",
-        "data/trace_phishing_base",
+        //"data/trace_phishing_base",
+        "data/all_benign",
         "--tokenizer_dir",
-        //"/mnt/raid0_ssd_8tb/rimon/cyber_spring23/embeddings/pine_backdoor_tokenizer/",
-        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/embeddings/trace_phishing_base_tokenizer/",
+        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/embeddings/bpe_tokenizer/",
         "--gpu_ids",
-        "3",
+        "0",
         "--mode",
-        "test" //"train"
+        "train" //"test"
       ],
       "purpose": [
         "debug-in-terminal"
@@ -39,9 +38,45 @@
         "--root_dir",
         "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/",
         "--raw_dir",
-        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/preprocess/raw_text/pine_backdoor_base/",
+        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/preprocess/raw_text/full_raw_uniq/",
         "--tokenizer_dir",
         "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/embeddings/pine_backdoor_tokenizer",
+        //"/mnt/raid0_ssd_8tb/rimon/cyber_spring23/preprocess/raw_text/trace_phishing_base/"
+      ],
+      "purpose": [
+        "debug-in-terminal"
+      ],
+      "justMyCode": true
+    },
+    {
+      "name": "BPE tokenizer",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/embeddings/bpe_tokenizer.py",
+      "console": "integratedTerminal",
+      "args": [
+        "--raw_dir",
+        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/preprocess/raw_text/full_raw/",
+        "--tokenizer_dir",
+        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/embeddings/bpe_tokenizer/",
+        //"/mnt/raid0_ssd_8tb/rimon/cyber_spring23/preprocess/raw_text/trace_phishing_base/"
+      ],
+      "purpose": [
+        "debug-in-terminal"
+      ],
+      "justMyCode": true
+    },
+    {
+      "name": "word level tokenizer",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/embeddings/word_tokenizer.py",
+      "console": "integratedTerminal",
+      "args": [
+        "--raw_dir",
+        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/preprocess/raw_text/full_raw_uniq/",
+        "--tokenizer_dir",
+        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/embeddings/phishing_tokenizer/",
         //"/mnt/raid0_ssd_8tb/rimon/cyber_spring23/preprocess/raw_text/trace_phishing_base/"
       ],
       "purpose": [
@@ -53,17 +88,17 @@
       "name": "Python: extract raw trace",
       "type": "python",
       "request": "launch",
-      "program": "${workspaceFolder}/preprocess/extract_raw_from_dict.py",
+      "program": "${workspaceFolder}/preprocess/extract_raw_trace.py",
       "console": "integratedTerminal",
       "args": [
-        "--ent_dict_fpath",
-        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/data/pine_backdoor_base/entity_dict.pkl",
-        "--out_path",
-        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/preprocess/raw_text/pine_backdoor_base",
-        //"--ent_dict_fpath",
-        //"/mnt/raid0_ssd_8tb/rimon/cyber_spring23/data/trace_phishing_reduced_files_firefox/entity_dict.pkl",
-        //"--out_path",
-        //"/mnt/raid0_ssd_8tb/rimon/cyber_spring23/preprocess/raw_text/trace_phishing_reduced_files_firefox",
+        // "--ent_dict_fpath",
+        // "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/data/pine_backdoor_base/entity_dict.pkl",
+        // "--out_path",
+        // "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/preprocess/raw_text/pine_backdoor_base",
+        // "--ent_dict_fpath",
+        // "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/data/trace_phishing_base/entity_dict.pkl",
+        // "--out_path",
+        // "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/preprocess/raw_text/trace_phishing_base",
       ],
       "purpose": [
         "debug-in-terminal"
@@ -90,20 +125,22 @@
       "console": "integratedTerminal",
       "args": [
         "--trace_dir",
-        //"/mnt/raid0_ssd_8tb/dataset/trace/data/phishing",
-        "/mnt/raid0_ssd_8tb/dataset/trace/data/pine_backdoor",
+        //"/mnt/raid0_ssd_8tb/dataset/provbert/trace/data/phishing",
+        "/mnt/raid0_ssd_8tb/dataset/tc3_trace/uncompressed/benign",
         "--output_dir",
-        //"${workspaceFolder}/data/trace_phishing_base",
-        "${workspaceFolder}/data/pine_backdoor_base",
+        "${workspaceFolder}/data/all_benign",
+        //"${workspaceFolder}/data/pine_backdoor_base",
         "--labels_file",
-        //"${workspaceFolder}/preprocess/phishing_attack_red_labels.json",
-        "${workspaceFolder}/preprocess/drakon_firefox_inmem.json",
+        "${workspaceFolder}/preprocess/phishing_attack_red_labels.json",
+        //"${workspaceFolder}/preprocess/drakon_firefox_inmem.json",
         //"${workspaceFolder}/preprocess/pine_backdoor_red_labels.json",
         "--reduce_noise",
         "NONE", //"TEMP_FILES",
-        //"--load"
+        //"--load",
         //"--walk_len",
-        //"4"
+        //"2",
+        "--vocab_path",
+        "/mnt/raid0_ssd_8tb/rimon/cyber_spring23/preprocess/raw_text/full_raw_uniq"
       ],
       "purpose": [
         "debug-in-terminal"

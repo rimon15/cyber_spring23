@@ -5,7 +5,8 @@ from collections import defaultdict
 from train import NodeSequenceTrain
 from eval import NodeSequenceTest
 import random
-from transformers import AutoTokenizer
+from transformers import BertTokenizerFast  # AutoTokenizer
+from tokenizers import Tokenizer
 
 MODEL_PARAMS = defaultdict(
     gpu_ids=[0],  # [0,1,2,3]
@@ -15,7 +16,7 @@ MODEL_PARAMS = defaultdict(
     learning_rate=3e-05,  # 2e-05
 
     dropout_keep_prob=0.8,
-    num_epochs=50,
+    num_epochs=1000,
     max_gradient_norm=5,
     adam_epsilon=1e-8,
     weight_decay=0.0,
@@ -24,9 +25,9 @@ MODEL_PARAMS = defaultdict(
 
     pad_idx=0,
     max_position_embeddings=512,
-    num_hidden_layers=4,
-    num_attention_heads=12,
-    bert_hidden_dim=768,
+    num_hidden_layers=4,  # try 12 (bert base), or 24 (bert large)
+    num_attention_heads=12,  # try 16 (bert large)
+    bert_hidden_dim=768,  # try 1024 for bert large
     attention_probs_dropout_prob=0.1,
     layer_norm_eps=1e-12,
     mlm_prob=0.15,
@@ -79,7 +80,8 @@ if __name__ == '__main__':
   args = arg_parser.parse_args()
   os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_ids
 
-  vocab_size = len(AutoTokenizer.from_pretrained(args.tokenizer_dir))
+  # vocab_size = len(AutoTokenizer.from_pretrained(args.tokenizer_dir))
+  vocab_size = len(BertTokenizerFast.from_pretrained(args.tokenizer_dir))
   hparams = PARAMS_MAP[args.model]
   hparams["gpu_ids"] = list(range(len(args.gpu_ids.split(","))))
   hparams["root_dir"] = args.root_dir

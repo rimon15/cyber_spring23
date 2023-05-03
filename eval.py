@@ -7,15 +7,17 @@ import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader, random_split
 from model.kbert import KBERT
-from transformers import DataCollatorForLanguageModeling, AutoTokenizer
+from transformers import DataCollatorForLanguageModeling, AutoTokenizer, BertTokenizerFast
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 import os
+from tokenizers import Tokenizer
 
 
 class NodeSequenceTest(object):
   def __init__(self, hparams):
     self.hparams = hparams
-    self.tokenizer = AutoTokenizer.from_pretrained(self.hparams.tokenizer_dir)
+    # self.tokenizer = AutoTokenizer.from_pretrained(self.hparams.tokenizer_dir)
+    self.tokenizer = BertTokenizerFast.from_pretrained(self.hparams.tokenizer_dir)
     self._logger = logging.getLogger(__name__)
 
     np.random.seed(hparams.random_seed)

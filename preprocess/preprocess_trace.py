@@ -12,6 +12,9 @@ import glob
 import networkx as nx
 import os
 import random
+import re
+
+HEX_PATTERN = r'[0-9A-Fa-f]{32}'
 
 VALID_EVENTS = {
     'event_execute': 0,
@@ -308,7 +311,7 @@ def reduce_noise_cpr(entities: dict, edges: dict) -> None:
   pass
 
 
-def reduce_noise_seqs(entities: dict, edges: dict, noisy_proc: list, noisy_file: list) -> None:
+def reduce_noise_seqs(entities: dict, edges: dict, noisy_proc: list, noisy_file: list, in_vocab_ents: dict) -> None:
   print("Removing noisy nodes and edges")
   edge_uuids = set()
   for uuid in tqdm.tqdm(edges, total=len(edges)):
@@ -318,22 +321,69 @@ def reduce_noise_seqs(entities: dict, edges: dict, noisy_proc: list, noisy_file:
       # if '-intPrefs' in entities[src_node]['cmdLine'] or '-boolPrefs' in entities[src_node]['cmdLine'] or \
       #         '-stringPrefs' in entities[src_node]['cmdLine']:
       for ne in noisy_proc:
-        if ne in entities[src_node]['cmdLine']:
+        if ne in entities[src_node]['cmdLine'].lower():
           edge_uuids.add(uuid)
+
+      # in_vocab = False
+      # for cur in entities[src_node]['cmdLine'].lower().split('/'):
+      #   if cur in in_vocab_ents:
+      #     in_vocab = True
+      #     break
+      # if not in_vocab:
+      #   edge_uuids.add(uuid)
+
+      if re.search(HEX_PATTERN, entities[src_node]['cmdLine'].split('/')[-1]):
+        edge_uuids.add(uuid)
+
     if entities[dest_node]['type'] == 'process':
       # if '-intPrefs' in entities[dest_node]['cmdLine'] or '-boolPrefs' in entities[dest_node]['cmdLine'] or \
       #         '-stringPrefs' in entities[dest_node]['cmdLine']:
       for ne in noisy_proc:
-        if ne in entities[dest_node]['cmdLine']:
+        if ne in entities[dest_node]['cmdLine'].lower():
           edge_uuids.add(uuid)
+
+      # in_vocab = False
+      # for cur in entities[dest_node]['cmdLine'].lower().split('/'):
+      #   if cur in in_vocab_ents:
+      #     in_vocab = True
+      #     break
+      # if not in_vocab:
+      #   edge_uuids.add(uuid)
+
+      if re.search(HEX_PATTERN, entities[dest_node]['cmdLine'].split('/')[-1]):
+        edge_uuids.add(uuid)
+
     if entities[src_node]['type'] == 'file':
       for ne in noisy_file:
-        if ne in entities[src_node]['path']:
+        if ne in entities[src_node]['path'].lower():
           edge_uuids.add(uuid)
+
+      # in_vocab = False
+      # for cur in entities[src_node]['path'].lower().split('/'):
+      #   if cur in in_vocab_ents:
+      #     in_vocab = True
+      #     break
+      # if not in_vocab:
+      #   edge_uuids.add(uuid)
+
+      if re.search(HEX_PATTERN, entities[src_node]['path'].split('/')[-1]):
+        edge_uuids.add(uuid)
+
     if entities[dest_node]['type'] == 'file':
       for ne in noisy_file:
-        if ne in entities[dest_node]['path']:
+        if ne in entities[dest_node]['path'].lower():
           edge_uuids.add(uuid)
+
+      # in_vocab = False
+      # for cur in entities[dest_node]['path'].lower().split('/'):
+      #   if cur in in_vocab_ents:
+      #     in_vocab = True
+      #     break
+      # if not in_vocab:
+      #   edge_uuids.add(uuid)
+
+      if re.search(HEX_PATTERN, entities[dest_node]['path'].split('/')[-1]):
+        edge_uuids.add(uuid)
 
   for edge_uuid in edge_uuids:
     del edges[edge_uuid]
@@ -366,6 +416,7 @@ def gen_nx_graph(edges: dict, entity2id: dict) -> nx.DiGraph:
 #         walk.append((id2entity[node], data['sequence']))
 #       walks[node].append(walk)
 #   return walks
+
 
 def find_all_paths(G: nx.DiGraph, u: str, n: int, exclude: set = None) -> list:
   if exclude == None:
@@ -417,6 +468,26 @@ def write_walks(G: nx.DiGraph, id2entity: dict, walks: dict[list[str]], fname: s
         else:
           f.write('0')
         f.write('\n')
+# def write_walks(G: nx.DiGraph, id2entity: dict, walks: dict[list[str]], fname: str, all_entities: dict) -> None:
+#   with open(fname, 'w') as f:
+#     for node in walks:
+#       cur_walk = ''
+#       for walk in walks[node]:
+#         is_red = False
+#         is_valid = True
+#         for i in range(len(walk) - 1):
+#           cur_node = id2entity[walk[i]]
+#           next_node = id2entity[walk[i + 1]]
+#           if all_entities[cur_node]['label'] == 1 or all_entities[next_node]['label'] == 1:
+#             is_red = True
+#           cur_walk += f'{cur_node}\t{G.get_edge_data(walk[i], walk[i + 1])["type"]}\t'
+#         cur_walk += f'{id2entity[walk[-1]]}\t'
+#         if is_red:
+#           cur_walk += '1'
+#         else:
+#           cur_walk += '0'
+#         cur_walk += '\n'
+#         f.write(cur_walk)
 
 
 if __name__ == "__main__":
@@ -429,6 +500,7 @@ if __name__ == "__main__":
   parser.add_argument('--walk_len', type=int, default=4, help='The length of the walk')
   parser.add_argument('--load', action='store_true',
                       help='Load the existing entities and edges from output_dir')
+  parser.add_argument('--vocab_path', type=str, help='The file containing the vocabulary of entities')
   args = parser.parse_args()
 
   all_entities = {}
@@ -475,10 +547,18 @@ if __name__ == "__main__":
       reduce_noise_cpr(all_entities, all_eval_edges)
 
     # Overall noise reduction that is always applied
+    # Currently, we aren't doing the "in vocab" reduction since we are using the BPE tokenizer
     noisy_procs = ['firefox', ]
     noisy_files = ['.so', ]
-    reduce_noise_seqs(all_entities, all_benign_edges, noisy_procs, noisy_files)
-    reduce_noise_seqs(all_entities, all_eval_edges, noisy_procs, noisy_files)
+    vocab_files = glob.glob(args.vocab_path + '/*.txt')
+    in_vocab_ents = dict()
+    for f in vocab_files:
+      with open(f, 'r') as f:
+        for line in f:
+          in_vocab_ents[line.strip()] = True
+
+    reduce_noise_seqs(all_entities, all_benign_edges, noisy_procs, noisy_files, in_vocab_ents)
+    reduce_noise_seqs(all_entities, all_eval_edges, noisy_procs, noisy_files, in_vocab_ents)
     # Remove any entities that have been reduced from reduce_noise_seqs
     noisy_entities = set()
     for e in all_entities:
@@ -532,6 +612,8 @@ if __name__ == "__main__":
 
   # Save the walks
   print("Saving walks...")
+  print('Number of benign sequences: ', len(benign_sequences))
+  print('Number of eval sequences: ', len(eval_sequences))
   write_walks(benign_graph, id2entity, benign_sequences, os.path.join(
       args.output_dir, 'benign_walks.txt'), all_entities)
   write_walks(eval_graph, id2entity, eval_sequences, os.path.join(

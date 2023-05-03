@@ -14,14 +14,14 @@ class NodeSequenceDataset(Dataset):
     self.inputs = []
     self.sep_category = {"process": 0, "file": 1, "socket": 2}
 
-    with open(os.path.join(hparams.root_dir + hparams.data_dir, "entity_dict.pkl"), "rb") as pkl_handler:
+    with open(os.path.join(hparams.data_dir, "entity_dict.pkl"), "rb") as pkl_handler:
       '''
       e.g., key: id, value: (info, type)
       6328899306454701882: ('/usr/share/doc/libfile-fcntllock-perl', 'file')
       '''
       self.entity_dict = pickle.load(pkl_handler)
 
-    with open(os.path.join(hparams.root_dir + hparams.data_dir, "benign_walks.txt"), "r") as data_handler:
+    with open(os.path.join(hparams.data_dir, "benign_walks.txt"), "r") as data_handler:
       '''
       e.g., id, relation, ... relation, id
       -3832575887008287552	EVENT_CREATE_OBJECT	-4185163237277691623	EVENT_FORK	-3442430275422800032	EVENT_EXECUTE	108003145666665265	EVENT_FORK	-2067566085360019418
@@ -46,28 +46,30 @@ class NodeSequenceDataset(Dataset):
 
   def prepare_features(self, example):
     sep_labels = list()
-    seqs = "[CLS] "
+    # seqs = "[CLS] "
+    seqs = ""
     elements = example.strip().split("\t")
 
     for e in elements[:-1]:
       if 'event' not in e:
         e_type = self.entity_dict[e]['type']
         if e_type == 'process':
-          seqs = seqs + self.entity_dict[e]['cmdLine']
+          seqs = seqs + self.entity_dict[e]['cmdLine'].split('/')[-1]
         elif e_type == 'file':
-          seqs = seqs + self.entity_dict[e]['path']
+          seqs = seqs + self.entity_dict[e]['path']  # .split('/')[-1]
         elif e_type == 'socket':
           seqs = seqs + self.entity_dict[e]['remoteAddress']
         else:
           raise ValueError("Unknown entity type: {}".format(e_type))
-        seqs += " [SEP] "
-        sep_labels.append(self.sep_category[e_type])
+        # seqs += " [SEP] "
+        # sep_labels.append(self.sep_category[e_type])
         # seqs = seqs + self.entity_dict[e][0] + " [SEP] "
         # sep_labels.append(self.sep_category[self.entity_dict[e][1]])
       else:
-        seqs = seqs + "[" + e + "] "
+        seqs = seqs + "[" + e + "]"
 
     tokenized_seqs = self.tokenizer.tokenize(seqs)
+    # print(seqs, '\n', tokenized_seqs, '\n')
     sep_pos = list()
     for _, tok in enumerate(tokenized_seqs):
       if tok == "[SEP]":
@@ -85,7 +87,7 @@ class NodeSequenceDataset(Dataset):
     input_ids = self.tokenizer.convert_tokens_to_ids(tokenized_seqs)
 
     assert len(input_ids) == len(attention_mask)
-    assert sep_pos.count(1) == len(sep_labels)
+    # assert sep_pos.count(1) == len(sep_labels)
     assert len(input_ids) <= self.hparams.max_sequence_len
 
     return input_ids, sep_pos, attention_mask, sep_labels

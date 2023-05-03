@@ -38,6 +38,7 @@ class KBERT(nn.Module):
 
       mlm_loss = self.loss_fct(outputs.logits.view(-1, self.hparams.vocab_size),
                                batch["labels"].view(-1).to(self.device))
+      # print(mlm_loss.item())
       bert_outputs = outputs.hidden_states[-1]
 
       cls_losses = []

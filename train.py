@@ -7,7 +7,7 @@ import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader, random_split
 from model.kbert import KBERT
-from transformers import DataCollatorForLanguageModeling, AutoTokenizer
+from transformers import DataCollatorForLanguageModeling, AutoTokenizer, BertTokenizerFast
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 import os
 
@@ -15,7 +15,8 @@ import os
 class NodeSequenceTrain(object):
   def __init__(self, hparams):
     self.hparams = hparams
-    self.tokenizer = AutoTokenizer.from_pretrained(self.hparams.tokenizer_dir)
+    # self.tokenizer = AutoTokenizer.from_pretrained(self.hparams.tokenizer_dir)
+    self.tokenizer = BertTokenizerFast.from_pretrained(self.hparams.tokenizer_dir)
     self._logger = logging.getLogger(__name__)
 
     np.random.seed(hparams.random_seed)
@@ -73,19 +74,26 @@ class NodeSequenceTrain(object):
       tqdm_batch_iterator = tqdm(self.train_dataloader)
       for idx, batch in enumerate(tqdm_batch_iterator):
         n_examples += 1
+        # seq_len = torch.count_nonzero(batch['attention_mask'])
+        # act_toks = self.tokenizer.convert_ids_to_tokens(
+        #     batch['input_ids'].view(self.hparams.max_sequence_len).tolist()[:seq_len])
+        # print(act_toks)
+
         # mlm_loss, cls_loss, _ = self.model(batch.to(self.device))
         mlm_loss, _ = self.model(batch.to(self.device))
         loss = mlm_loss  # + cls_loss
         total_loss += loss
         loss.backward()
         self.optimizer.step()
-        #break
+        # break
       print(
           " ** | Epoch {:03d} | Loss {:.4f} |".format(epoch + 1, total_loss / n_examples))
       if (epoch + 1) % self.hparams.save_every == 0:
+        continue
         # acc, p, r, f, perplexity = self.validation()
         perplexity = self.validation()
         if perplexity < prev_perplexity:
+          prev_perplexity = perplexity
           self._logger.info("Saving model...")
           torch.save({
               'epoch': epoch + 1,
