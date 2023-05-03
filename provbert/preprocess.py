@@ -3,13 +3,18 @@ import re
 
 all_walks = []
 ent_dict = {}
-ip_with_port_regex = r'\b(?:\d{1,3}\.){3}\d{1,3}:\d{1,5}\b'
+# ip_with_port_regex = r'\b(?:\d{1,3}\.){3}\d{1,3}:\d{1,5}\b'
+ip_regex = r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
 num_regex = r'\d+'
 ip_replace = 'IP'
 num_replace = 'NUM'
 
+BENIGN_WALK_PATH = 'data/trace_phishing_base/benign_walks.txt'
+EVAL_WALK_PATH = 'data/trace_phishing_base/eval_walks.txt'
+BENIGN_OUT_PATH = 'data/preprocessed/benign.txt'
+EVAL_OUT_PATH = 'data/preprocessed/eval.txt'
 
-with open('data/trace_phishing_base/benign_walks.txt', 'r') as f:
+with open(EVAL_WALK_PATH, 'r') as f:
     for line in f:
         all_walks.append(line.strip())
 
@@ -32,8 +37,8 @@ for w in all_walks:
                 cur += ent_dict[e]['remoteAddress']
     seqs.append(cur)
 
-with open('data/preprocessed/benign.txt', 'w') as f:
+with open(EVAL_OUT_PATH, 'w') as f:
     for s in seqs:
-        s = re.sub(ip_with_port_regex, ip_replace, s)
+        s = re.sub(ip_regex, ip_replace, s)
         s = re.sub(num_regex, num_replace, s)
         f.write(s + '\n')
